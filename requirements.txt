@@ -6,3 +6,4 @@ gTTS
 pydantic
 speechrecognition
 python-dotenv
+python-multipart
