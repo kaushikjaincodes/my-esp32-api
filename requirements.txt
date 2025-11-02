@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+gunicorn
+google-generativeai
+gTTS
+pydantic
+speechrecognition
+python-dotenv

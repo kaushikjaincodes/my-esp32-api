@@ -1,0 +1,3 @@
+venv start - & "C:/Users/PC/OneDrive/Desktop/PDEU/Sem 7/IOT Project/speech_api/venv/Scripts/Activate.ps1"
+
+ uvicorn app:app --reload
