@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.responses import Response, JSONResponse
 
 import speech_recognition as sr
-from google import genai
+import google.generativeai as genai  # <-- FIX 1: This import statement changed
 from gtts import gTTS
 from dotenv import load_dotenv
 import tempfile
@@ -15,10 +15,9 @@ from typing import List, Dict
 load_dotenv()
 app = FastAPI(title="Gemini API Emulator for ESP32")
 
-# Configure your Gemini client
-# Make sure your GOOGLE_API_KEY is in your .env file
-# genai.configure() will be called implicitly by genai.Client()
-client = genai.Client() # Using the syntax you requested
+# --- FIX 2: This is the new way to configure and create the client ---
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+client = genai.GenerativeModel("models/gemini-2.5-flash") 
 
 
 # --- Pydantic Models (to understand Arduino's JSON) ---
@@ -106,15 +105,11 @@ async def chat_completions(payload: ChatPayload):
         
         full_prompt = f"{system_prompt}\n\nUser: {user_prompt}"
 
-        # --- MODIFIED SECTION: Using your requested syntax ---
-        response = client.models.generate_content(
-            model="models/gemini-2.5-flash", # Make sure to use the full model name
-            contents=full_prompt
-        )
+        # --- FIX 3: This is the new way to call the client ---
+        response = client.generate_content(full_prompt)
         
-        # Use getattr to safely get the text, just like in your original code
         text_output = getattr(response, "text", str(response))
-        # --- END OF MODIFIED SECTION ---
+        # --- END OF FIX ---
 
         print(f"    -> Gemini Response: {text_output}")
 
