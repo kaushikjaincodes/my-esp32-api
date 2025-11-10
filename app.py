@@ -1,8 +1,8 @@
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, UploadFile, Request
 from fastapi.responses import Response, JSONResponse
 
 import speech_recognition as sr
-import google.generativeai as genai  # <-- FIX 1: This import statement changed
+import google.generativeai as genai 
 from gtts import gTTS
 from dotenv import load_dotenv
 import tempfile
@@ -35,6 +35,40 @@ class TTSPayload(BaseModel):
     input: str
     voice: str
 
+@app.post("/")
+async def print_whatever_is_received(request: Request):
+    """
+    This endpoint receives any POST request,
+    reads its raw body, prints it to the console,
+    and returns a confirmation message.
+    """
+    
+    # Read the raw body from the request
+    body = await request.body()
+    
+    # Print the raw body (as bytes) to the console
+    print("--- Received Body (raw bytes) ---")
+    print(body)
+    print("---------------------------------")
+    
+    # We can also try to decode it as text for a cleaner print,
+    # but this might fail if the data isn't text.
+    try:
+        body_as_text = body.decode('utf-8')
+        print("--- Received Body (decoded as text) ---")
+        print(body_as_text)
+        print("-------------------------------------")
+    except UnicodeDecodeError:
+        print("--- Body could not be decoded as UTF-8 text ---")
+        body_as_text = "[Non-text data received]"
+
+    # Return a JSON response to the client
+    return {
+        "message": "Data received and printed to server console.",
+        "data_received_as_text": body_as_text
+    }
+
+    
 
 # --- 1. Speech-to-Text (STT) Endpoint ---
 @app.post("/v1/audio/transcriptions")

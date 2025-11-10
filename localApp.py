@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, UploadFile, Request  # <-- FIX 1: Added Request
 from fastapi.responses import Response, JSONResponse
 
 import speech_recognition as sr
@@ -10,6 +10,7 @@ import io
 import os
 from pydantic import BaseModel
 from typing import List, Dict
+import uvicorn # <-- Moved uvicorn import to the top
 
 # --- Setup ---
 load_dotenv()
@@ -17,8 +18,11 @@ app = FastAPI(title="Gemini API Emulator for ESP32")
 
 # Configure your Gemini client
 # Make sure your GOOGLE_API_KEY is in your .env file
-# genai.configure() will be called implicitly by genai.Client()
-client = genai.Client() # Using the syntax you requested
+# <-- FIX 3: Use modern genai.configure() and genai.GenerativeModel()
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+# Instantiate the model we'll be using
+gemini_model = genai.GenerativeModel("gemini-2.5-flash")
+# <-- END OF FIX 3
 
 
 # --- Pydantic Models (to understand Arduino's JSON) ---
@@ -36,6 +40,38 @@ class TTSPayload(BaseModel):
     input: str
     voice: str
 
+@app.post("/")
+async def print_whatever_is_received(request: Request):
+    """
+    This endpoint receives any POST request,
+    reads its raw body, prints it to the console,
+    and returns a confirmation message.
+    """
+    
+    # Read the raw body from the request
+    body = await request.body()
+    
+    # Print the raw body (as bytes) to the console
+    print("--- Received Body (raw bytes) ---")
+    print(body)
+    print("---------------------------------")
+    
+    # We can also try to decode it as text for a cleaner print,
+    # but this might fail if the data isn't text.
+    try:
+        body_as_text = body.decode('utf-8')
+        print("--- Received Body (decoded as text) ---")
+        print(body_as_text)
+        print("-------------------------------------")
+    except UnicodeDecodeError:
+        print("--- Body could not be decoded as UTF-8 text ---")
+        body_as_text = "[Non-text data received]"
+
+    # Return a JSON response to the client
+    return {
+        "message": "Data received and printed to server console.",
+        "data_received_as_text": body_as_text
+    }
 
 # --- 1. Speech-to-Text (STT) Endpoint ---
 @app.post("/v1/audio/transcriptions")
@@ -106,14 +142,14 @@ async def chat_completions(payload: ChatPayload):
         
         full_prompt = f"{system_prompt}\n\nUser: {user_prompt}"
 
-        # --- MODIFIED SECTION: Using your requested syntax ---
-        response = client.models.generate_content(
-            model="models/gemini-2.5-flash", # Make sure to use the full model name
+        # --- MODIFIED SECTION: Using modern genai syntax ---
+        # <-- FIX 3: Use the instantiated model and call generate_content
+        response = gemini_model.generate_content(
             contents=full_prompt
         )
         
-        # Use getattr to safely get the text, just like in your original code
-        text_output = getattr(response, "text", str(response))
+        # The new response object has .text directly
+        text_output = response.text
         # --- END OF MODIFIED SECTION ---
 
         print(f"    -> Gemini Response: {text_output}")
@@ -162,6 +198,6 @@ async def text_to_speech(payload: TTSPayload):
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
 if __name__ == "__main__":
-    import uvicorn
     # Run on 0.0.0.0 to make it accessible on your local network
+    print("Starting FastAPI server at http://0.0.0.0:8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)
