@@ -7,3 +7,4 @@ pydantic
 speechrecognition
 python-dotenv
 python-multipart
+pydub
